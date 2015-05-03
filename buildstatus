@@ -60,8 +60,10 @@ try:
     stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
 except subprocess.CalledProcessError:
     commit = 'unknown'
+if not 'commit' in status.keys():
+    status['commit'] = 'unknown'
 commit_color = bcolors['OKGREEN'] if status['commit'] == commit else bcolors['WARNING']
-if commit == 'unknown':
+if commit == 'unknown' or status['commit'] == 'unknown':
     commit_color = bcolors['FAIL']
 commit_message = status['commit'] if status['commit'] == commit else status['commit'] + " local commit is: " + commit
 if status['updated'].isdigit():
@@ -72,9 +74,11 @@ else:
     tdiff = bcolors['FAIL']+"couldn't read the time from buildserver"+bcolors['ENDC']
 
 
+## print data
 print(bcolors['BOLD'] + "Build status for {repo}"
       .format(repo=repo) + bcolors['ENDC'])
 print("on " + bcolors['UNDERLINE'] + buildserver+repo + bcolors['ENDC'])
+print("github url: " + bcolors['UNDERLINE'] + "https://github.com/fau-fablab/"+repo + bcolors['ENDC'])
 print("status:     " + status_color + status['status'] + bcolors['ENDC'])
 print("commit:     " + commit_color + commit_message + bcolors['ENDC'])
 print("build date: " + status['updated-human'] + " ({diff})".format(diff=tdiff))

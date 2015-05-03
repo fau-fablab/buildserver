@@ -39,9 +39,9 @@ function build-with-submodule() {
 	pushd $INPUT_DIR > /dev/null
 	# git fetch + reset instead of git pull so that force-pushes are fetched correctly
 	git fetch > /dev/null
-	commit_id=$(git log --pretty=format:"%h" --abbrev-commit --date=short -1)
 	git reset --hard origin > /dev/null
 	git submodule update --init > /dev/null
+	commit_id=$(git log --pretty=format:"%h" --abbrev-commit --date=short -1)
 	make > /dev/null
 	mkdir -p $OUTPUT_DIR
 	cd output
