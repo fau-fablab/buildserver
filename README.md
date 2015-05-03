@@ -20,6 +20,22 @@ Usage Server
 ./build.sh 6
 ```
 
+Repository setup
+----------------
+
+Create your repositories this way:
+
+* Makefile in the top directory
+* all dependent repos are git submodules. If you want to point to a branch instead of a specific commit, use a tracking-branch (`git submodule add ... -b master`)
+* The Makefile copies all public output to the output/ subdirectory
+
+Add the repository to the configuration. The output can then be found under `http://my-buildserver/repository/`
+
+examples:
+
+* https://github.com/fau-fablab/document-dummy is a working repository
+* https://github.com/fau-fablab/fablab-document/blob/master/README_deployment.md explains setting up the FAU FabLab LaTeX template
+
 Usage Client:
 -------------
 
