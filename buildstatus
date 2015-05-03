@@ -1,48 +1,100 @@
 #!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
 __author__ = 'basti.endres@fablab.fau.de'
 __license__ = 'UNILICENSE'
 
-#from configparser import ConfigParser
 import configparser
-import os
+from os import getcwd, path, listdir
+from sys import argv
+import re
 import requests
 import json
 import simplejson
 import subprocess
-from datetime import datetime, date, time
+from datetime import datetime
 from dateutil.relativedelta import *
 import inspect
 
 
-script_path = os.path.realpath(os.path.dirname(inspect.getfile(inspect.currentframe())))
+script_path = path.realpath(path.dirname(inspect.getfile(inspect.currentframe())))
 with open(script_path + '/config.cfg', 'r') as f:
     config_string = '[dummy_section]\n' + f.read()
     cfg = configparser.ConfigParser()
 cfg.read_string(config_string)
 buildserver = cfg.get('dummy_section', 'buildserver')
 
-
 bcolors = {'HEADER': '\033[95m', 'OKBLUE': '\033[94m', 'OKGREEN': '\033[92m',
            'WARNING': '\033[93m', 'FAIL': '\033[91m',
            'ENDC': '\033[0m', 'BOLD': '\033[1m', 'UNDERLINE': '\033[4m'}
 
-def format_date_diff(reld):
-    str = bcolors['WARNING'] if reld.days+reld.months+reld.years >= 1 else bcolors['ENDC']
-    if reld.years > 0:
-        return bcolors['FAIL'] + "{y} years and {m} months ago".format(y=reld.years, m=reld.months) + bcolors['ENDC']
-    elif reld.months > 0:
-        return bcolors['FAIL'] + "{m} months and {d} days ago".format(m=reld.months, d=reld.days) + bcolors['ENDC']
-    elif reld.days > 0:
-        return bcolors['WARNING'] + "{d} days and {h} hours ago".format(d=reld.days, h=reld.hours) + bcolors['ENDC']
-    elif reld.hours > 0:
-        return bcolors['WARNING'] + "{h} hours and {m} min. ago".format(h=reld.hours, m=reld.minutes) + bcolors['ENDC']
-    elif reld.minutes > 0:
-        return bcolors['OKGREEN'] + "{} minutes ago".format(reld.minutes) + bcolors['ENDC']
+
+def colorize(color, message):
+    if '--no-color' in argv or '-n' in argv:
+        return message
     else:
-        return bcolors['OKGREEN'] + "just some seconds ago" + bcolors['ENDC']
+        return "%s%s%s" % (color, message, bcolors['ENDC'])
 
 
-repo = os.getcwd().split('/')[-1]
+def format_date_diff(reld):
+    if reld.years > 0:
+        return colorize(bcolors['FAIL'], "{y} years and {m} months ago".format(y=reld.years, m=reld.months))
+    elif reld.months > 0:
+        return colorize(bcolors['FAIL'], "{m} months and {d} days ago".format(m=reld.months, d=reld.days))
+    elif reld.days > 0:
+        return colorize(bcolors['WARNING'], "{d} days and {h} hours ago".format(d=reld.days, h=reld.hours))
+    elif reld.hours > 0:
+        return colorize(bcolors['WARNING'], "{h} hours and {m} min. ago".format(h=reld.hours, m=reld.minutes))
+    elif reld.minutes > 0:
+        return colorize(bcolors['OKGREEN'], "{} minutes ago".format(reld.minutes))
+    else:
+        return colorize(bcolors['OKGREEN'], "just some seconds ago")
+
+
+def do_check():
+    # submodule check # TODO won't work
+    try:
+        subm = subprocess.check_output(['git', 'submodule', 'foreach', 'git', 'remote', 'update'], ).decode('utf-8')
+        subm += subprocess.check_output(['git', 'submodule', 'foreach', 'git', 'status', '-uno']).decode('utf-8')
+        if "Head detached" in subm:
+            subm = "submodule:  " + colorize(bcolors['WARNING'], "HEAD detached")
+        elif "Already up to date" in subm:
+            subm = "submodule:  " + colorize(bcolors['OKGREEN'], "up to date")
+        else:
+            subm = "submodule:  " + colorize(bcolors['WARNING'], "remote changes")
+    except subprocess.CalledProcessError:
+        subm = "submodule: " + colorize(bcolors['FAIL'], "unknown")
+    todos = 0
+    links = []
+    for tex in listdir('.'):
+        if tex.endswith('.tex'):
+            try:
+                # replace is a workaround for broken url regex :)
+                text = open(tex, 'r', encoding='utf8').read().replace(' ', '\n')
+                # TODOs
+                r = re.compile(r"todo", re.IGNORECASE)
+                todos += len(r.findall(text))
+                # Links to check
+                r = re.compile(r"\\url\{(.*)\}")
+                for l in r.findall(text):
+                    if l not in links:
+                        links.append(l)
+            except Exception:
+                try:
+                    print(colorize(bcolors['FAIL'], "Can't read file '%s'" % tex))
+                except UnicodeEncodeError:
+                    print(colorize(bcolors['FAIL'], "Can't open a file and I can't tell you wich file it is"))
+    todo_color = bcolors['OKGREEN'] if todos < 5 else bcolors['FAIL'] if todos > 20 else bcolors['WARNING']
+    todo_message = colorize(todo_color, str(todos))
+    if todos == 0:
+        todo_message = colorize(bcolors['OKGREEN'], "no todos found")
+    if len(links) == 0:
+        links_message = colorize(bcolors['OKGREEN'], "no links found")
+    else:
+        links_message = "\n - " + "\n - ".join(str(l) for l in links)
+    return subm, 'todos:      ' + todo_message, 'links:      ' + links_message
+
+
+repo = getcwd().split('/')[-1]
 
 url = buildserver + repo + "/status.json"
 headers = {'Accept': 'application/json', 'User-Agent': 'buildserver-client'}
@@ -51,9 +103,10 @@ r = requests.get(url, headers=headers)
 try:
     status = r.json()
 except simplejson.JSONDecodeError:
-    status = { 'status': 'unknown', 'updated-human': 'unknown', 'updated': 'unknown', 'commit': 'unknown' }
+    status = {'status': 'unknown', 'updated-human': 'unknown', 'updated': 'unknown', 'commit': 'unknown'}
 
-status_color = bcolors['OKGREEN'] if status['status'] == "success" else bcolors['WARNING'] if status['status'] == "pending" else bcolors['FAIL']
+status_color = bcolors['OKGREEN'] if status['status'] == "success" else \
+    bcolors['WARNING'] if status['status'] == "pending" else bcolors['FAIL']
 try:
     git_status = subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'],
                                          stderr=subprocess.DEVNULL).decode('utf-8')
@@ -62,11 +115,11 @@ except subprocess.CalledProcessError:
     git_status = 'error'
 try:
     commit = subprocess.check_output(
-                        ['git', 'log', '--pretty=format:"%h"', '--abbrev-commit', '--date=short', '-1'],
-    stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
+        ['git', 'log', '--pretty=format:"%h"', '--abbrev-commit', '--date=short', '-1'],
+        stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
 except subprocess.CalledProcessError:
     commit = 'unknown'
-if not 'commit' in status.keys():
+if 'commit' not in status.keys():
     status['commit'] = 'unknown'
 commit_color = bcolors['OKGREEN'] if status['commit'] == commit else bcolors['WARNING']
 if commit == 'unknown' or status['commit'] == 'unknown':
@@ -77,19 +130,27 @@ if status['updated'].isdigit():
     rd = relativedelta(datetime.utcnow(), updated)
     tdiff = format_date_diff(rd)
 else:
-    tdiff = bcolors['FAIL']+"couldn't read the date from buildserver"+bcolors['ENDC']
+    tdiff = colorize(bcolors['FAIL'], "couldn't read the date from buildserver")
 
+if len(argv) > 1 and ("-c" in argv or "--check" in argv):
+    check = True
+    (submod_status, todos, links) = do_check()
+else:
+    check = False
+    (submod_status, todos, links) = ('unknown', 'unknown', 'unknown')
 
-## print data
-print(bcolors['BOLD'] + "Build status for '{repo}'"
-      .format(repo=repo) + bcolors['ENDC'])
-print("on " + bcolors['UNDERLINE'] + buildserver+repo + bcolors['ENDC'])
-print("github url: " + bcolors['UNDERLINE'] + "https://github.com/fau-fablab/"+repo + bcolors['ENDC'])
-if git_status == 'local changes': print(bcolors['WARNING'] + "repo:       there are local changes" + bcolors['ENDC'])
-print("status:     " + status_color + status['status'] + bcolors['ENDC'])
-print("commit:     " + commit_color + commit_message + bcolors['ENDC'])
+# print data
+print(colorize(bcolors['BOLD'], "Build status for '{repo}'".format(repo=repo)))
+print("on " + colorize(bcolors['UNDERLINE'], buildserver + repo))
+print("github url: " + colorize(bcolors['UNDERLINE'], "https://github.com/fau-fablab/" + repo))
+if git_status == 'local changes':
+    print("repo:       " + colorize(bcolors['WARNING'], "there are local changes"))
+if check:
+    print(submod_status)
+    print(todos)
+    print(links)
+print("status:     " + colorize(status_color, status['status']))
+print("commit:     " + colorize(commit_color, commit_message))
 print("build date: " + status['updated-human'] + " ({diff})".format(diff=tdiff))
 
-
 exit(0)
-

@@ -43,13 +43,15 @@ $> buildstatus
 
   to see information about the buildstatus in your terminal.
 
+ 5. Add option `-c` to run checks for the current repo.
+
 ### Tip:
 
  * Use [clustergit](https://github.com/sedrubal/clustergit) for batch processing.
 If you moved everything concerning the 'Einweisungen' into a folder, you can run:
 
 ```bash
-$> clustergit --exec "buildstatus" -e "(.*)(buildserver|fablab-document)"
+$> clustergit --exec "buildstatus -c" -e "(.*)(buildserver|fablab-document)"
 ```
 
  * You can also use the `ssh-agent` for keeping you ssh key unlocked for $time.
