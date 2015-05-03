@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+__author__ = 'basti.endres@fablab.fau.de'
+__license__ = 'UNILICENSE'
+
+#from configparser import ConfigParser
+import configparser
+import os
+import requests
+import json
+import simplejson
+import subprocess
+from datetime import datetime, date, time
+from dateutil.relativedelta import *
+import inspect
+
+
+script_path = os.path.realpath(os.path.dirname(inspect.getfile(inspect.currentframe())))
+with open(script_path + '/config.cfg', 'r') as f:
+    config_string = '[dummy_section]\n' + f.read()
+    cfg = configparser.ConfigParser()
+cfg.read_string(config_string)
+buildserver = cfg.get('dummy_section', 'buildserver')
+
+
+bcolors = {'HEADER': '\033[95m', 'OKBLUE': '\033[94m', 'OKGREEN': '\033[92m',
+           'WARNING': '\033[93m', 'FAIL': '\033[91m',
+           'ENDC': '\033[0m', 'BOLD': '\033[1m', 'UNDERLINE': '\033[4m'}
+
+def format_date_diff(reld):
+    str = bcolors['WARNING'] if reld.days+reld.months+reld.years >= 1 else bcolors['ENDC']
+    if reld.years > 0:
+        return bcolors['FAIL'] + "{y} years and {m} months ago".format(y=reld.years, m=reld.months) + bcolors['ENDC']
+    elif reld.months > 0:
+        return bcolors['FAIL'] + "{m} months and {d} days ago".format(m=reld.months, d=reld.days) + bcolors['ENDC']
+    elif reld.days > 0:
+        return bcolors['WARNING'] + "{d} days and {h} hours ago".format(d=reld.days, h=reld.hours) + bcolors['ENDC']
+    elif reld.hours > 0:
+        return bcolors['WARNING'] + "{h} hours and {m} min. ago".format(h=reld.hours, m=reld.minutes) + bcolors['ENDC']
+    elif reld.minutes > 0:
+        return bcolors['OKGREEN'] + "{} minutes ago".format(reld.minutes) + bcolors['ENDC']
+    else:
+        return bcolors['OKGREEN'] + "just some seconds ago" + bcolors['ENDC']
+
+
+repo = os.getcwd().split('/')[-1]
+
+url = buildserver + repo + "/status.json"
+headers = {'Accept': 'application/json', 'User-Agent': 'buildserver-client'}
+r = requests.get(url, headers=headers)
+
+try:
+    status = r.json()
+except simplejson.JSONDecodeError:
+    status = { 'status': 'unknown', 'updated-human': 'unknown', 'updated': 'unknown', 'commit': 'unknown' }
+
+status_color = bcolors['OKGREEN'] if status['status'] == "success" else bcolors['WARNING'] if status['status'] == "pending" else bcolors['FAIL']
+try:
+    commit = subprocess.check_output(
+                        ['git', 'log', '--pretty=format:"%h"', '--abbrev-commit', '--date=short', '-1'],
+    stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
+except subprocess.CalledProcessError:
+    commit = 'unknown'
+commit_color = bcolors['OKGREEN'] if status['commit'] == commit else bcolors['WARNING']
+if commit == 'unknown':
+    commit_color = bcolors['FAIL']
+commit_message = status['commit'] if status['commit'] == commit else status['commit'] + " local commit is: " + commit
+if status['updated'].isdigit():
+    updated = datetime.utcfromtimestamp(int(status['updated']))
+    rd = relativedelta(datetime.utcnow(), updated)
+    tdiff = format_date_diff(rd)
+else:
+    tdiff = bcolors['FAIL']+"couldn't read the time from buildserver"+bcolors['ENDC']
+
+
+print(bcolors['BOLD'] + "Build status for {repo}"
+      .format(repo=repo) + bcolors['ENDC'])
+print("on " + bcolors['UNDERLINE'] + buildserver+repo + bcolors['ENDC'])
+print("status:     " + status_color + status['status'] + bcolors['ENDC'])
+print("commit:     " + commit_color + commit_message + bcolors['ENDC'])
+print("build date: " + status['updated-human'] + " ({diff})".format(diff=tdiff))
+
+
+exit(0)
+

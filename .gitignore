@@ -3,3 +3,7 @@
 !.gitignore
 !README.md
 !build.sh
+!buildstatus
+!config.cfg.example
+!status-icons
+!status-icons/build*

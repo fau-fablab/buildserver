@@ -11,9 +11,9 @@ set -e
 # execute function handle-exit on exit
 trap handle-exit EXIT
 
-# Repositories to build:
-repos=("document-dummy" "fraese-einweisung" "reflow-ofen-einweisung" "buttonpresse-einweisung" "betreuer-einweisung" "werkstatt-einweisung" "fraese-imodela-einweisung" "platinenaetzer-einweisung" "drehbank-einweisung" "lasercutter-einweisung" "3d-drucker-einweisung" "schneideplotter-einweisung" "oerp-einweisung")
-
+# Read repositories to build from config.cfg:
+configfile='config.cfg'
+source "$(dirname $0)/$configfile"
 
 # count of repos to build
 count=${#repos[@]}
