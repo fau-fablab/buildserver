@@ -55,6 +55,12 @@ except simplejson.JSONDecodeError:
 
 status_color = bcolors['OKGREEN'] if status['status'] == "success" else bcolors['WARNING'] if status['status'] == "pending" else bcolors['FAIL']
 try:
+    git_status = subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'],
+                                         stderr=subprocess.DEVNULL).decode('utf-8')
+    git_status = 'ok' if git_status == '' else 'local changes'
+except subprocess.CalledProcessError:
+    git_status = 'error'
+try:
     commit = subprocess.check_output(
                         ['git', 'log', '--pretty=format:"%h"', '--abbrev-commit', '--date=short', '-1'],
     stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
@@ -71,14 +77,15 @@ if status['updated'].isdigit():
     rd = relativedelta(datetime.utcnow(), updated)
     tdiff = format_date_diff(rd)
 else:
-    tdiff = bcolors['FAIL']+"couldn't read the time from buildserver"+bcolors['ENDC']
+    tdiff = bcolors['FAIL']+"couldn't read the date from buildserver"+bcolors['ENDC']
 
 
 ## print data
-print(bcolors['BOLD'] + "Build status for {repo}"
+print(bcolors['BOLD'] + "Build status for '{repo}'"
       .format(repo=repo) + bcolors['ENDC'])
 print("on " + bcolors['UNDERLINE'] + buildserver+repo + bcolors['ENDC'])
 print("github url: " + bcolors['UNDERLINE'] + "https://github.com/fau-fablab/"+repo + bcolors['ENDC'])
+if git_status == 'local changes': print(bcolors['WARNING'] + "repo:       there are local changes" + bcolors['ENDC'])
 print("status:     " + status_color + status['status'] + bcolors['ENDC'])
 print("commit:     " + commit_color + commit_message + bcolors['ENDC'])
 print("build date: " + status['updated-human'] + " ({diff})".format(diff=tdiff))
