@@ -28,26 +28,26 @@ bcolors = {'HEADER': '\033[95m', 'OKBLUE': '\033[94m', 'OKGREEN': '\033[92m',
            'ENDC': '\033[0m', 'BOLD': '\033[1m', 'UNDERLINE': '\033[4m'}
 
 
-def colorize(color, message):
-    if '--no-color' in argv or '-n' in argv:
+def colorize(color, message, no_color=False):
+    if '--no-color' in argv or '-n' in argv or no_color:
         return message
     else:
         return "%s%s%s" % (color, message, bcolors['ENDC'])
 
 
-def format_date_diff(reld):
+def format_date_diff(reld, no_color=False):
     if reld.years > 0:
-        return colorize(bcolors['FAIL'], "{y} years and {m} months ago".format(y=reld.years, m=reld.months))
+        return colorize(bcolors['FAIL'], "{y} years and {m} months ago".format(y=reld.years, m=reld.months), no_color)
     elif reld.months > 0:
-        return colorize(bcolors['FAIL'], "{m} months and {d} days ago".format(m=reld.months, d=reld.days))
+        return colorize(bcolors['FAIL'], "{m} months and {d} days ago".format(m=reld.months, d=reld.days), no_color)
     elif reld.days > 0:
-        return colorize(bcolors['WARNING'], "{d} days and {h} hours ago".format(d=reld.days, h=reld.hours))
+        return colorize(bcolors['WARNING'], "{d} days and {h} hours ago".format(d=reld.days, h=reld.hours), no_color)
     elif reld.hours > 0:
-        return colorize(bcolors['WARNING'], "{h} hours and {m} min. ago".format(h=reld.hours, m=reld.minutes))
+        return colorize(bcolors['WARNING'], "{h} hours and {m} min. ago".format(h=reld.hours, m=reld.minutes), no_color)
     elif reld.minutes > 0:
-        return colorize(bcolors['OKGREEN'], "{} minutes ago".format(reld.minutes))
+        return colorize(bcolors['OKGREEN'], "{} minutes ago".format(reld.minutes), no_color)
     else:
-        return colorize(bcolors['OKGREEN'], "just some seconds ago")
+        return colorize(bcolors['OKGREEN'], "just some seconds ago", no_color)
 
 
 def do_check():
@@ -119,6 +119,14 @@ try:
         stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
 except subprocess.CalledProcessError:
     commit = 'unknown'
+try:
+    commit_date = subprocess.check_output(
+        ['git', 'log', '--pretty=format:"%ad"', '--abbrev-commit', '--date=raw', '-1'],
+        stderr=subprocess.DEVNULL).decode('utf-8').strip('"')
+    commit_date = datetime.fromtimestamp(int(commit_date.split(' ')[0]))
+    commit_date = format_date_diff(relativedelta(datetime.now(), commit_date), True)
+except subprocess.CalledProcessError:
+    commit_date = colorize(bcolors['WARNING'], 'unknown')
 if 'commit' not in status.keys():
     status['commit'] = 'unknown'
 commit_color = bcolors['OKGREEN'] if status['commit'] == commit else bcolors['WARNING']
@@ -150,7 +158,7 @@ if check:
     print(todos)
     print(links)
 print("status:     " + colorize(status_color, status['status']))
-print("commit:     " + colorize(commit_color, commit_message))
+print("commit:     " + colorize(commit_color, commit_message) + ' (' + str(commit_date) + ')')
 print("build date: " + status['updated-human'] + " ({diff})".format(diff=tdiff))
 
 exit(0)
