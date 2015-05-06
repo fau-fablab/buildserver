@@ -38,10 +38,11 @@ function build-with-submodule() {
 	OUTPUT_DIR="$HOME/public_html/$1/"
 	pushd $INPUT_DIR > /dev/null
 	# git fetch + reset instead of git pull so that force-pushes are fetched correctly
-	git fetch > /dev/null
+	fetch_output=${git fetch}
 	git reset --hard origin > /dev/null
 	git submodule update --init > /dev/null
 	commit_id=$(git log --pretty=format:"%h" --abbrev-commit --date=short -1)
+	commit_author=$(git log --pretty=format:"%an" --abbrev-commit --date=short -1)
 	todos=0
 	while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.tex" -print0)
 	while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.md" -print0)
@@ -53,12 +54,15 @@ function build-with-submodule() {
 	popd  > /dev/null
 	commit_id=""
 	todos=""
+	if [ ! -z $fetch_output ] ; then
+		echo "Author of this commit is ${commit_author}"
+	fi
 }
 
 # If the exit value of the script > 0 then the current $repo build seems to be failed (set -e causes this)
 function handle-exit() {
 	if (( $? > 0 )) ; then
-        	echo "[!] Build repository '${repo}' failed!" 1>&2
+		echo "[!] Build repository '${repo}' failed! Author: ${commit_author}" 1>&2
 		update-status $repo failed
 		current_repo_index=$((current_repo_index+1))
 		# run this script recursively, but start with next index
@@ -84,6 +88,11 @@ function update-status() {
 	else
 	    commit_info=", \"commit\": \"${commit_id}\""
 	fi
+	if [[ -z "$commit_author" || "$commit_author" == "" ]]; then
+	    commit_author_info=""
+	else
+	    commit_author_info=", \"author\": \"${commit_author}\""
+	fi
 	if [[ -z "$todos" || "$todos" == "" ]]; then
 	    todos_info=""
 	else
@@ -98,7 +107,7 @@ function update-status() {
 	    fi
 	    sed "s/\$todos/$todos/g" $TODOS_SVG_TEMPLATE | sed "s/\$fg_color/${fg_color[${index}]}/g" - | sed "s/\$bg_color/${bg_color[${index}]}/g" - > "${STATUS_OUT_DIR}status-todos.svg"
 	fi
-	echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\"${commit_info}${todos_info} }" > "${STATUS_OUT_DIR}status.json"
+	echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\"${commit_info}${commit_author_info}${todos_info} }" > "${STATUS_OUT_DIR}status.json"
 }
 
 # usage: run <start_index>
