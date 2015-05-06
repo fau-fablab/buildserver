@@ -57,7 +57,9 @@ def do_check():
         subm += subprocess.check_output(['git', 'submodule', 'foreach', 'git', 'status', '-uno']).decode('utf-8')
         if "Head detached" in subm:
             subm = "submodule:  " + colorize(bcolors['WARNING'], "HEAD detached")
-        elif "Already up to date" in subm:
+        elif "git push" in subm:
+            subm = "submodule:  " + colorize(bcolors['WARNING'], "local changes")
+        elif "On branch " in subm:
             subm = "submodule:  " + colorize(bcolors['OKGREEN'], "up to date")
         else:
             subm = "submodule:  " + colorize(bcolors['WARNING'], "remote changes")

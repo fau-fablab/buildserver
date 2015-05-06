@@ -54,7 +54,7 @@ function build-with-submodule() {
     popd  > /dev/null
     commit_id=""
     todos=""
-    if [ ! -z $fetch_output ] ; then
+    if [ ! -z "$fetch_output" ] ; then
         echo "Author of this commit is ${commit_author}"
     fi
 }
