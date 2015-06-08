@@ -46,10 +46,11 @@ function build-with-submodule() {
     todos=0
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.tex" -print0)
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.md" -print0)
+    make clean > /dev/null # TODO only run `make clean` from time to time
     make > /dev/null
     mkdir -p $OUTPUT_DIR
     cd output
-    cp ./*.* $OUTPUT_DIR
+    rsync --delete --recursive . $OUTPUT_DIR
     update-status $1 success
     popd  > /dev/null
     commit_id=""
