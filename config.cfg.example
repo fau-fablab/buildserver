@@ -1,4 +1,4 @@
 buildserver="https://macgyver.fablab.fau.de/~buildserver/" 
-REPOS_DIR=$PWD
-OUTPUT_DIR=$PWD/public_html
+REPOS_DIR=$HOME
+OUTPUT_DIR=$HOME/public_html
 repos=("document-dummy" "fraese-einweisung" "reflow-ofen-einweisung" "buttonpresse-einweisung" "betreuer-einweisung" "werkstatt-einweisung" "fraese-imodela-einweisung" "platinenaetzer-einweisung" "drehbank-einweisung" "lasercutter-einweisung" "3d-drucker-einweisung" "schneideplotter-einweisung" "oerp-einweisung")
