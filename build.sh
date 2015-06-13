@@ -56,16 +56,20 @@ function build-with-submodule() {
     fetch_output=$(git fetch)
     git reset --hard origin > /dev/null
     git submodule update --init > /dev/null
+    # collect some infos (for status)
     commit_id=$(git log --pretty=format:"%h" --abbrev-commit --date=short -1)
     commit_author=$(git log --pretty=format:"%an" --abbrev-commit --date=short -1)
     todos=0
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.tex" -print0)
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.md" -print0)
+    # build
     if [[ ! -z $clean && "$clean" == "TRUE" ]] ; then make clean > /dev/null ; fi # clean, when second argument is "clean"
     make > /dev/null
+    # bring it to the output dir
     mkdir -p $CUR_OUTPUT_DIR
     cd output
     rsync --delete --recursive . $CUR_OUTPUT_DIR
+    touch "${CUR_OUTPUT_DIR}" # change last modified for easily check for old repo outputs
     update-status "${CUR_REPO}" "success"
     popd  > /dev/null
     commit_id=""
@@ -136,6 +140,25 @@ function run() {
     done
 }
 
+# usage: clean_output
+#
+# looks at every directory in $OUTPUT_DIR and delets it
+function clean_output() {
+    cd $OUTPUT_DIR
+    for d in `find * -maxdepth 0 -type d`; do
+        date="$(stat -c %X "$d")" # get dirs last access time as timestamp
+        limit="$(date -d "-1 week" +%s)" # get limit timestamp (one week before)
+        tdiff=$(( $date - $limit )) # calculate the difference, if this is >0 everything is ok
+        if (( $tdiff < 0 )); then
+            echo "[i] output '${d}' is older than one week, I'll try to delete this"
+            if [[ "$(id -u)" == "$(stat -c %u ${d})" || "$(id -g)" == "$(stat -c %g w)" ]]; then
+                rm -rf $d
+            else
+                echo "[!] Well, I can't delete it. I'm not allowed to"
+            fi
+        fi
+    done
+}
 
 # execute function handle-exit on exit
 trap handle-exit EXIT
@@ -143,4 +166,8 @@ trap handle-exit EXIT
 # run and begin by $start repo
 run $start
 
+# clean old output dirs
+if [[ ! -z $clean && "$clean" == "TRUE" ]] ; then clean_output; fi
+
+# everything was successfull
 exit 0
