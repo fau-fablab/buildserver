@@ -8,8 +8,13 @@
 
 # Exit on error
 set -e
-# execute function handle-exit on exit
-trap handle-exit EXIT
+
+# default config
+BUILDSERVER_DIR="${PWD}/"
+STATUS_ICONS_DIR="${BUILDSERVER_DIR}/status-icons/"
+TODOS_SVG_TEMPLATE="${STATUS_ICONS_DIR}todos.svg.template"
+REPOS_DIR="${PWD}"
+OUTPUT_DIR="${PWD}/public_html"
 
 # Read repositories to build from config.cfg:
 configfile='config.cfg'
@@ -17,25 +22,38 @@ source "$(dirname $0)/$configfile"
 
 # count of repos to build
 count=${#repos[@]}
-# if an argument is given, then start building with this index 
-if [ -z "$1" ]; then
+
+# Parse the input arguments
+if [[ -z "$1" || "$1" == "all-repos" ]]; then
     start=0
 else
     re='^[0-9]+$'
     if ! [[ $1 =~ $re ]] ; then
-        echo "[!] Argument '${1}' is not a number" >&2; exit 1
+        echo "[!] The first argument '${1}' is not a number. You should provide the index of the first repo to build from the config or 'all-repos' to build all repos." >&2; exit 1
     fi
     start=$1
 fi
+
+if [ ! -z $2 ] ; then
+    if [ "$2" == "clean" ]; then
+        clean="TRUE"
+    else
+        echo "[!] The second argument '${2}' should be 'clean' if you want to run a make clean before building" >&2; exit 1
+    fi
+fi
+
+# execute function handle-exit on exit
+trap handle-exit EXIT
 
 # usage: build-with-submodule <name>
 #
 # updates git repo in ~/<name>, runs make, copies ~/<name>/output/*.* to ~/public_html/<name>/
 function build-with-submodule() {
-    cd ~
-    update-status $1 pending
-    INPUT_DIR="$HOME/$1/"
-    OUTPUT_DIR="$HOME/public_html/$1/"
+    CUR_REPO=$1
+    cd "${REPOS_DIR}"
+    update-status $CUR_REPO "pending"
+    INPUT_DIR="$REPOS_DIR/$CUR_REPO/"
+    CUR_OUTPUT_DIR="$OUTPUT_DIR/$CUR_REPO/"
     pushd $INPUT_DIR > /dev/null
     # git fetch + reset instead of git pull so that force-pushes are fetched correctly
     fetch_output=$(git fetch)
@@ -46,11 +64,11 @@ function build-with-submodule() {
     todos=0
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.tex" -print0)
     while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.md" -print0)
-    make clean > /dev/null # TODO only run `make clean` from time to time
+    if [[ ! -z $clean && "$clean" == "TRUE" ]] ; then make clean > /dev/null ; fi # clean, when second argument is "clean"
     make > /dev/null
-    mkdir -p $OUTPUT_DIR
+    mkdir -p $CUR_OUTPUT_DIR
     cd output
-    rsync --delete --recursive . $OUTPUT_DIR
+    rsync --delete --recursive . $CUR_OUTPUT_DIR
     update-status $1 success
     popd  > /dev/null
     commit_id=""
@@ -67,7 +85,8 @@ function handle-exit() {
         update-status $repo failed
         current_repo_index=$((current_repo_index+1))
         # run this script recursively, but start with next index
-        $0 $current_repo_index
+        cd "${BUILDSERVER_DIR}"
+        "${BUILDSERVER_DIR}build.sh" "${current_repo_index}"
         exit 1
     else
         # no error -> exit normally
@@ -79,11 +98,9 @@ function handle-exit() {
 #
 # updates the status.svg and the status.json of the repo
 function update-status() {
-    mkdir -p "$HOME/public_html/$1"
-    STATUS_OUT_DIR="$HOME/public_html/$1/"
-    STATUS_DIR="$HOME/status-icons/"
-    TODOS_SVG_TEMPLATE="${STATUS_DIR}todos.svg.template"
-    cp "${STATUS_DIR}build-${2}.svg" "${STATUS_OUT_DIR}status.svg"
+    STATUS_OUT_DIR="$OUTPUT_DIR/$1/"
+    mkdir -p "$STATUS_OUT_DIR"
+    cp "${STATUS_ICONS_DIR}build-${2}.svg" "${STATUS_OUT_DIR}status.svg"
     if [[ -z "$commit_id" || "$commit_id" == "" ]]; then
         commit_info=""
     else
