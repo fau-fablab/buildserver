@@ -146,13 +146,13 @@ function run() {
 function clean_output() {
     cd $OUTPUT_DIR
     for d in `find * -maxdepth 0 -type d`; do
-        date="$(stat -c %X "$d")" # get dirs last access time as timestamp
+        date="$(stat -c %Y "$d")" # get dirs last data modification time as timestamp
         limit="$(date -d "-1 week" +%s)" # get limit timestamp (one week before)
-        tdiff=$(( $date - $limit )) # calculate the difference, if this is >0 everything is ok
+        tdiff="$(( $date - $limit ))" # calculate the difference, if this is >0 everything is ok
         if (( $tdiff < 0 )); then
             echo "[i] output '${d}' is older than one week, I'll try to delete this"
             if [[ "$(id -u)" == "$(stat -c %u ${d})" || "$(id -g)" == "$(stat -c %g w)" ]]; then
-                rm -rf $d
+                rm -rf "${d}"
             else
                 echo "[!] Well, I can't delete it. I'm not allowed to"
             fi
