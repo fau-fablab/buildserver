@@ -29,7 +29,13 @@ if [[ -z "$1" || "$1" == "all-repos" ]]; then
 else
     re='^[0-9]+$'
     if ! [[ $1 =~ $re ]] ; then
-        echo "[!] The first argument '${1}' is not a number. You should provide the index of the first repo to build from the config or 'all-repos' to build all repos." >&2; exit 1
+        echo "[!] The first argument '${1}' is not a number." >&2
+        echo "" >&2
+        echo "Usage: build.sh (<number>|all-repos) [clean]" >&2
+        echo "  <number>: the index of the first repo to build from the config, or 'all-repos' to build all repos"  >&2
+        echo "  clean: additionally execute make clean, rebuild everything"  >&2
+        echo "example: build.sh all-repos" >&2
+        exit 1
     fi
     start=$1
 fi
