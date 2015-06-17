@@ -1,10 +1,5 @@
-*
+*/
+config.cfg
 .*
 !.gitignore
-!README.md
-!build.sh
-!buildstatus
-!config.cfg.example
-!status-icons
-!status-icons/build*
-!status-icons/todos.svg.template
+!status-icons/*

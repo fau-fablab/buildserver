@@ -10,7 +10,7 @@ Usage Server
 
  1. "Register" the directory name of each repo to be build in the `$repo` variable in `config.cfg`.
 
- 1. Run [`build.sh`](build.sh) in a cronjob.
+ 1. Run [`build_cron.sh`](build_cron.sh) in a cronjob, webhook, whatever, as often as you like - it will return if the last build is still running
 
 ```bash
 # Usage:
