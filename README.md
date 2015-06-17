@@ -10,7 +10,12 @@ Usage Server
 
  1. "Register" the directory name of each repo to be build in the `$repo` variable in `config.cfg`.
 
- 1. Run [`build_cron.sh`](build_cron.sh) in a cronjob, webhook, whatever, as often as you like - it will return if the last build is still running
+ 1. Run [`build_cron.sh check`](build_cron.sh) in a cronjob as often as you like - it will return if the last build is still running
+ 
+ 1. from time to time, run `build_cron.sh clean` to trigger a cleanup and complete rebuild. `build_cron.sh force` does the same without cleanup.
+ 
+ 1. setup a pull webhook to `trigger_build.php`
+  
 
 ```bash
 # Usage:
