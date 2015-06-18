@@ -29,7 +29,13 @@ if [[ -z "$1" || "$1" == "all-repos" ]]; then
 else
     re='^[0-9]+$'
     if ! [[ $1 =~ $re ]] ; then
-        echo "[!] The first argument '${1}' is not a number. You should provide the index of the first repo to build from the config or 'all-repos' to build all repos." >&2; exit 1
+        echo "[!] The first argument '${1}' is not a number." >&2
+        echo "" >&2
+        echo "Usage: build.sh (<number>|all-repos) [clean]" >&2
+        echo "  <number>: the index of the first repo to build from the config, or 'all-repos' to build all repos"  >&2
+        echo "  clean: additionally execute make clean, rebuild everything"  >&2
+        echo "example: build.sh all-repos" >&2
+        exit 1
     fi
     start=$1
 fi
@@ -142,7 +148,9 @@ function run() {
 
 # usage: clean_output
 #
-# looks at every directory in $OUTPUT_DIR and delets it
+# looks at every directory in $OUTPUT_DIR and warns if it is older than one week
+# note: the ctime of a directory does not necessarily change when updating its contents.
+# therefore, we touch each output dir during build.
 function clean_output() {
     cd $OUTPUT_DIR
     for d in `find * -maxdepth 0 -type d`; do
@@ -150,12 +158,13 @@ function clean_output() {
         limit="$(date -d "-1 week" +%s)" # get limit timestamp (one week before)
         tdiff="$(( $date - $limit ))" # calculate the difference, if this is >0 everything is ok
         if (( $tdiff < 0 )); then
-            echo "[i] output '${d}' is older than one week, I'll try to delete this"
-            if [[ "$(id -u)" == "$(stat -c %u ${d})" || "$(id -g)" == "$(stat -c %g w)" ]]; then
-                rm -rf "${d}"
-            else
-                echo "[!] Well, I can't delete it. I'm not allowed to"
-            fi
+            echo "[i] output '${d}' was not updated for one week. Maybe you want to remove it because it is no longer in the configuration?"
+	    # Do not remove it because in some cases this behaviour is not wanted (e.g. cooperation with other buildscripts writing to the same folder)
+            #if [[ "$(id -u)" == "$(stat -c %u ${d})" || "$(id -g)" == "$(stat -c %g w)" ]]; then
+            #    rm -rf "${d}"
+            #else
+            #    echo "[!] Well, I can't delete it. I'm not allowed to"
+            #fi
         fi
     done
 }
