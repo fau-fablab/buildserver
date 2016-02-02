@@ -11,8 +11,6 @@ set -e
 
 # default config
 BUILDSERVER_DIR="$(readlink -f `dirname $0`)/"
-STATUS_ICONS_DIR="${BUILDSERVER_DIR}status-icons/"
-TODOS_SVG_TEMPLATE="${STATUS_ICONS_DIR}todos.svg.template"
 REPOS_DIR="${BUILDSERVER_DIR}"
 OUTPUT_DIR="${BUILDSERVER_DIR}/public_html/"
 
@@ -107,7 +105,19 @@ function handle-exit() {
 function update-status() {
     STATUS_OUT_DIR="${OUTPUT_DIR}$1/"
     mkdir -p "$STATUS_OUT_DIR"
-    cp "${STATUS_ICONS_DIR}build-${2}.svg" "${STATUS_OUT_DIR}status.svg"
+    if [[ "${2}" == "failed" ]]; then
+        COLOR="red"
+    elif [[ "${2}" == "pending" ]]; then
+        COLOR="yellow"
+    elif [[ "${2}" == "success" ]]; then
+        COLOR="green"
+    elif [[ "${2}" == "unknown" ]]; then
+        COLOR="gray"
+    else
+        echo "Invalid status ${2}" 1>&2
+        exit 1
+    fi
+    wget -q -O "${STATUS_OUT_DIR}status.svg" "https://img.shields.io/badge/build-${2}-${COLOR}.svg"
     if [[ -z "$commit_id" || "$commit_id" == "" ]]; then
         commit_info=""
     else
@@ -122,15 +132,14 @@ function update-status() {
         todos_info=""
     else
         todos_info=", \"todos\": \"${todos}\""
-        fg_color=("#323232" "#323232" "#646464")
-        bg_color=("#149123" "#b6ba19" "#911414")
+        colors=("green" "yellow" "red")
         index=0
         if (( $todos > 5 )) ; then
             index=1
         elif (( $todos > 20 )) ; then
             index=2
         fi
-        sed "s/\$todos/$todos/g" $TODOS_SVG_TEMPLATE | sed "s/\$fg_color/${fg_color[${index}]}/g" - | sed "s/\$bg_color/${bg_color[${index}]}/g" - > "${STATUS_OUT_DIR}status-todos.svg"
+        wget -q -O "${STATUS_OUT_DIR}status-todos.svg" "https://img.shields.io/badge/todos-${todos}-${colors[${index}]}.svg"
     fi
     echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\"${commit_info}${commit_author_info}${todos_info} }" > "${STATUS_OUT_DIR}status.json"
 }
