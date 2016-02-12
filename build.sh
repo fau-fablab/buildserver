@@ -55,6 +55,7 @@ function build-with-submodule() {
     update-status "${CUR_REPO}" "pending"
     INPUT_DIR="${REPOS_DIR}${CUR_REPO}/"
     CUR_OUTPUT_DIR="${OUTPUT_DIR}${CUR_REPO}/"
+    ! test -d $INPUT_DIR || git clone "${REPO_URL_PREFIX}${CUR_REPO}${REPO_URL_SUFFIX}"
     pushd $INPUT_DIR > /dev/null
     # git fetch + reset instead of git pull so that force-pushes are fetched correctly
     fetch_output=$(git fetch)
