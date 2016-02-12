@@ -1,5 +1,8 @@
 buildserver="https://macgyver.fablab.fau.de/~buildserver/" 
 buildserver_trigger_url="https://macgyver.fablab.fau.de/trigger_build.php"
+REPO_URL_PREFIX=https://github.com/fau-fablab/
+REPO_URL_SUFFIX=.git
+HOME=/home/buildserver/
 REPOS_DIR="$HOME"
 OUTPUT_DIR="$HOME/public_html"
 repos=("document-dummy" "fraese-einweisung" "reflow-ofen-einweisung" "buttonpresse-einweisung" "betreuer-einweisung" "werkstatt-einweisung" "fraese-imodela-einweisung" "platinenaetzer-einweisung" "drehbank-einweisung" "lasercutter-einweisung" "3d-drucker-einweisung" "schneideplotter-einweisung" "oerp-einweisung")

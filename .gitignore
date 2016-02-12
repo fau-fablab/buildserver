@@ -1,6 +1,5 @@
-*/
+output/
 !state/.gitignore
 config.cfg
-.*
 !.gitignore
 !status-icons/*
