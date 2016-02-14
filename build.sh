@@ -18,6 +18,8 @@ OUTPUT_DIR="${BUILDSERVER_DIR}/public_html/"
 configfile='config.cfg'
 source "$(dirname $0)/$configfile"
 
+mkdir -p "${OUTPUT_DIR}"
+
 # count of repos to build
 count=${#repos[@]}
 
