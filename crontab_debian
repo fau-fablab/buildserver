@@ -1,7 +1,7 @@
 # copy this /etc/cron.d/buildserver
 
-*  * * * * /home/buildserver/build_cron.sh check
+buildserver *  * * * * /home/buildserver/build_cron.sh check
 
 ## BUILDSERVER SCRIPT, UM 19:07 WIRD ZUSAETZLICH MAKE CLEAN AUSGEFUEHRT UND ALTE REPOS GELOESCHT
-  7    19 * * * buildserver /home/buildserver/build_cron.sh clean
+buildserver   7    19 * * * buildserver /home/buildserver/build_cron.sh clean
 
