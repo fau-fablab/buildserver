@@ -44,8 +44,11 @@ test $CLEANUP_PENDING_FILE -nt $DONE_FILE && cleanup="clean"
 # map all build errors to return value 1 to separate them from a timeout
 TIMEOUT_TIME=15m
 
-touch "$DONE_FILE"
-timeout $TIMEOUT_TIME flock -n $LOCKFILE -c "./build.sh all-repos $cleanup || exit 1" \
-|| rm "$DONE_FILE"
+# store the current time in the creation time of the tempfile
+TEMPFILE=`mktemp` || exit 1
+echo "starting triggered build $cleanup"
+timeout $TIMEOUT_TIME flock -n $LOCKFILE -c "./build.sh all-repos $cleanup || exit 1"
 [[ $? -ge 124 ]] && { echo "timed out" >&2; exit 1; }
+mv "$TEMPFILE" "$DONE_FILE"
+echo "finished successfully"
 exit 0
