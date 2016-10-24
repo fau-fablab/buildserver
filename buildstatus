@@ -144,7 +144,7 @@ if __name__ == "__main__":
         r = requests.get(URL, headers=HEADERS)
 
         if not r.ok:
-            print(colorize(TCOLORS['WARNING'], "Threre was an problem while accessing the API"))
+            print(colorize(TCOLORS['WARNING'], "There was an problem while accessing the API"))
             exit(1)
 
         try:

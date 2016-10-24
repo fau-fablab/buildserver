@@ -106,8 +106,8 @@ function handle-exit() {
 #
 # updates the status.svg and the status.json of the repo
 function update-status() {
-    STATUS_OUT_DIR="${OUTPUT_DIR}$1/"
-    mkdir -p "$STATUS_OUT_DIR"
+    STATUS_OUT_DIR="${OUTPUT_DIR}/$1/"
+    mkdir -p "${STATUS_OUT_DIR}"
     if [[ "${2}" == "failed" ]]; then
         COLOR="red"
     elif [[ "${2}" == "pending" ]]; then
