@@ -120,7 +120,7 @@ function update-status() {
         echo "Invalid status ${2}" 1>&2
         exit 1
     fi
-    wget -q -O "${STATUS_OUT_DIR}status.svg" "https://img.shields.io/badge/build-${2}-${COLOR}.svg"
+    curl --silent -o "${STATUS_OUT_DIR}status.svg" "https://img.shields.io/badge/build-${2}-${COLOR}.svg"
     if [[ -z "$commit_id" || "$commit_id" == "" ]]; then
         commit_info=""
     else
@@ -142,7 +142,7 @@ function update-status() {
         elif (( $todos > 20 )) ; then
             index=2
         fi
-        wget -q -O "${STATUS_OUT_DIR}status-todos.svg" "https://img.shields.io/badge/todos-${todos}-${colors[${index}]}.svg"
+        curl --silent -o "${STATUS_OUT_DIR}status-todos.svg" "https://img.shields.io/badge/todos-${todos}-${colors[${index}]}.svg"
     fi
     echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\"${commit_info}${commit_author_info}${todos_info} }" > "${STATUS_OUT_DIR}status.json"
 }
