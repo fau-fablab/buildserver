@@ -15,6 +15,13 @@ Usage Server
  1. from time to time, run `build_cron.sh clean` to trigger a cleanup and complete rebuild. `build_cron.sh force` does the same without cleanup.
  
  1. setup a pull webhook to `trigger_build.php`
+
+Fetching instead of building
+----------------------------
+
+Repos listed in `$repos_release` are not built by the buildserver. Instead, the file `output.tar.gz` is downloaded from the latest GitHub release of the repo (`<REPO_URL_PREFIX><repo>/releases/latest/download/output.tar.gz`) and its content is published like the `output/` directory of a built repo. If the download fails, the previously published files are kept.
+
+A repo must only be listed in one of `$repos` and `$repos_release`. `build.sh releases` only fetches and does not build anything.
   
 
 ```bash
