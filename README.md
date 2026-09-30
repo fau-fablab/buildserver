@@ -10,22 +10,20 @@ Usage Server
 
  1. "Register" the directory name of each repo to be build in the `$repo` variable in `config.cfg`.
 
- 1. Run [`build_cron.sh check`](build_cron.sh) in a cronjob as often as you like - it will return if the last build is still running
+ 1. Run [`build_cron.sh check`](build_cron.sh) in a cronjob as often as you like - it will return if the last build is still running. It runs a build if one was triggered or if the last one is older than one hour, so that a lost trigger does not leave outdated files forever.
  
  1. from time to time, run `build_cron.sh clean` to trigger a cleanup and complete rebuild. `build_cron.sh force` does the same without cleanup.
  
- 1. setup a pull webhook to `trigger_build.php`
+ 1. setup a webhook to `trigger_build.php`. Enable it for the events "push" and "release": repos which are built here change with a push, repos which are fetched (see below) change when their GitHub Action has finished and created the release, which is some minutes after the push.
+
+ 1. for monitoring, check the modification time of `state/last-successful-run`. It is touched after each run which did not time out. Failures of single repos are only visible in their `status.json`.
 
 Fetching instead of building
 ----------------------------
 
 Repos listed in `$repos_release` are not built by the buildserver. Instead, the file `output.tar.gz` is downloaded from the latest GitHub release of the repo (`<REPO_URL_PREFIX><repo>/releases/latest/download/output.tar.gz`) and its content is published like the `output/` directory of a built repo. If the download fails, the previously published files are kept.
 
-A repo must only be listed in one of `$repos` and `$repos_release`. `build.sh releases` only fetches and does not build anything.
-
-`build_cron.sh check` also fetches the releases once per hour without being triggered, so that a lost trigger does not leave outdated files forever. Triggering is still the normal way. Builds with `make` are only started by a trigger.
-
-After each run without any failed repo, `state/last-successful-run` is touched. Use its modification time for monitoring.
+A repo must only be listed in one of `$repos` and `$repos_release`.
   
 
 ```bash

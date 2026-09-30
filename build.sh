@@ -33,16 +33,13 @@ count=${#repos[@]}
 # Parse the input arguments
 if [[ -z "$1" || "$1" == "all-repos" ]]; then
     start=0
-elif [[ "$1" == "releases" ]]; then
-    start=$release_start
 else
     re='^[0-9]+$'
     if ! [[ $1 =~ $re ]] ; then
         echo "[!] The first argument '${1}' is not a number." >&2
         echo "" >&2
-        echo "Usage: build.sh (<number>|all-repos|releases) [clean]" >&2
+        echo "Usage: build.sh (<number>|all-repos) [clean]" >&2
         echo "  <number>: the index of the first repo to build from the config, or 'all-repos' to build all repos"  >&2
-        echo "  releases: only fetch the repos listed in repos_release, do not build anything"  >&2
         echo "  clean: additionally execute make clean, rebuild everything"  >&2
         echo "example: build.sh all-repos" >&2
         exit 1
