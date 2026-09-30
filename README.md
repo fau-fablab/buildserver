@@ -22,6 +22,10 @@ Fetching instead of building
 Repos listed in `$repos_release` are not built by the buildserver. Instead, the file `output.tar.gz` is downloaded from the latest GitHub release of the repo (`<REPO_URL_PREFIX><repo>/releases/latest/download/output.tar.gz`) and its content is published like the `output/` directory of a built repo. If the download fails, the previously published files are kept.
 
 A repo must only be listed in one of `$repos` and `$repos_release`. `build.sh releases` only fetches and does not build anything.
+
+`build_cron.sh check` also fetches the releases once per hour without being triggered, so that a lost trigger does not leave outdated files forever. Triggering is still the normal way. Builds with `make` are only started by a trigger.
+
+After each run without any failed repo, `state/last-successful-run` is touched. Use its modification time for monitoring.
   
 
 ```bash
