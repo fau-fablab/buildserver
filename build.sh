@@ -13,6 +13,9 @@ set -e
 BUILDSERVER_DIR="$(readlink -f `dirname $0`)/"
 REPOS_DIR="${BUILDSERVER_DIR}"
 OUTPUT_DIR="${BUILDSERVER_DIR}/public_html/"
+# repos which are not built here, but whose output is fetched from their latest GitHub release
+repos_release=()
+RELEASE_ASSET="output.tar.gz"
 
 # Read repositories to build from config.cfg:
 configfile='config.cfg'
@@ -20,7 +23,11 @@ source "$(dirname $0)/$configfile"
 
 mkdir -p "${OUTPUT_DIR}"
 
-# count of repos to build
+# the repos to fetch are handled after the repos to build, so that one index covers both lists
+release_start=${#repos[@]}
+repos=("${repos[@]}" "${repos_release[@]}")
+
+# count of repos to build or fetch
 count=${#repos[@]}
 
 # Parse the input arguments
@@ -86,6 +93,33 @@ function build-with-submodule() {
     fi
 }
 
+# usage: fetch-release <name>
+#
+# downloads the asset $RELEASE_ASSET of the latest release of <name> and copies its content to ~/public_html/<name>/
+# The output dir is only touched after download and extraction succeeded, so a failure keeps the old files.
+function fetch-release() {
+    CUR_REPO=$1
+    # nothing is checked out here, so there is no commit info for the status
+    commit_id=""
+    commit_author=""
+    todos=""
+    update-status "${CUR_REPO}" "pending"
+    CUR_OUTPUT_DIR="${OUTPUT_DIR}/${CUR_REPO}/"
+    DOWNLOAD_DIR="${REPOS_DIR}/.release-download/"
+    rm -rf "${DOWNLOAD_DIR}"
+    mkdir -p "${DOWNLOAD_DIR}/output"
+    curl --silent --show-error --fail --location --max-time 120 \
+        -o "${DOWNLOAD_DIR}/${RELEASE_ASSET}" \
+        "${REPO_URL_PREFIX}${CUR_REPO}/releases/latest/download/${RELEASE_ASSET}"
+    tar --extract --gzip --no-same-owner --file "${DOWNLOAD_DIR}/${RELEASE_ASSET}" --directory "${DOWNLOAD_DIR}/output"
+    # bring it to the output dir
+    mkdir -p "${CUR_OUTPUT_DIR}"
+    rsync --delete --recursive "${DOWNLOAD_DIR}/output/" "${CUR_OUTPUT_DIR}"
+    touch "${CUR_OUTPUT_DIR}" # change last modified for easily check for old repo outputs
+    update-status "${CUR_REPO}" "success"
+    rm -rf "${DOWNLOAD_DIR}"
+}
+
 # If the exit value of the script > 0 then the current $repo build seems to be failed (set -e causes this)
 function handle-exit() {
     if (( $? > 0 )) ; then
@@ -149,12 +183,16 @@ function update-status() {
 
 # usage: run <start_index>
 #
-# runs through each repo given in $repos
+# runs through each repo given in $repos and $repos_release
 function run() {
     for (( current_repo_index=$1; current_repo_index<$count; current_repo_index++ )) ; do
         repo="${repos[${current_repo_index}]}"
         # echo "[i] building repo ${repo}"
-        build-with-submodule $repo
+        if (( current_repo_index < release_start )); then
+            build-with-submodule $repo
+        else
+            fetch-release $repo
+        fi
     done
 }
 
