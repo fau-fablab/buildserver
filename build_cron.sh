@@ -2,7 +2,7 @@
 
 # quick hack: this script may be started as often as you like,
 # it will launch a build process of none is running.
-# use the `clean` option 
+# use the `clean` option to additionally check for outdated output dirs.
 
 cd "$(dirname $0)"
 
@@ -28,7 +28,7 @@ elif [[ "$1" != "check" ]]; then
 	echo 'usage: build_cron.sh (force|clean|check)'
 	echo "force: trigger a build and run it if no build is currently running"
 	echo "force_queued: trigger a build, but do not run it -- call this from a webhook"
-	echo "clean: like force, but with an extra 'make clean'"
+	echo "clean: like force, but also warn about output dirs which are no longer updated"
 	echo "check: run a build if it is triggered or if the last one is older than one hour"
 	exit 1
 fi
@@ -42,7 +42,7 @@ fi
 # quit if another instance is already running
 flock -n $LOCKFILE -c "true" || exit 0
 
-# run "make clean" when it is pending
+# check for outdated output dirs when it is pending
 cleanup=""
 test $CLEANUP_PENDING_FILE -nt $DONE_FILE && cleanup="clean"
 

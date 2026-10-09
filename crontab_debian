@@ -2,6 +2,6 @@
 
 *  * * * * buildserver /home/buildserver/build_cron.sh check
 
-## BUILDSERVER SCRIPT, UM 19:07 WIRD ZUSAETZLICH MAKE CLEAN AUSGEFUEHRT UND ALTE REPOS GELOESCHT
+## BUILDSERVER SCRIPT, UM 19:07 WIRD ZUSAETZLICH AUF VERALTETE AUSGABEORDNER GEPRUEFT
 7    19 * * * buildserver /home/buildserver/build_cron.sh clean
 
