@@ -6,6 +6,8 @@
 # ATTENTION
 # OPENERP pricelist is built by buildserver-openerp to separate permissions
 
+# The repos are not built here. Their output is fetched from the latest GitHub release.
+
 # Exit on error
 set -e
 
@@ -13,7 +15,8 @@ set -e
 BUILDSERVER_DIR="$(readlink -f `dirname $0`)/"
 REPOS_DIR="${BUILDSERVER_DIR}"
 OUTPUT_DIR="${BUILDSERVER_DIR}/public_html/"
-# repos which are not built here, but whose output is fetched from their latest GitHub release
+# older configs list some repos in repos_release, they are handled like repos
+repos=()
 repos_release=()
 RELEASE_ASSET="output.tar.gz"
 
@@ -23,11 +26,10 @@ source "$(dirname $0)/$configfile"
 
 mkdir -p "${OUTPUT_DIR}"
 
-# the repos to fetch are handled after the repos to build, so that one index covers both lists
-release_start=${#repos[@]}
+# one index covers both lists
 repos=("${repos[@]}" "${repos_release[@]}")
 
-# count of repos to build or fetch
+# count of repos to fetch
 count=${#repos[@]}
 
 # Parse the input arguments
@@ -39,8 +41,8 @@ else
         echo "[!] The first argument '${1}' is not a number." >&2
         echo "" >&2
         echo "Usage: build.sh (<number>|all-repos) [clean]" >&2
-        echo "  <number>: the index of the first repo to build from the config, or 'all-repos' to build all repos"  >&2
-        echo "  clean: additionally execute make clean, rebuild everything"  >&2
+        echo "  <number>: the index of the first repo to fetch from the config, or 'all-repos' to fetch all repos"  >&2
+        echo "  clean: additionally warn about output dirs which are no longer updated"  >&2
         echo "example: build.sh all-repos" >&2
         exit 1
     fi
@@ -51,47 +53,9 @@ if [ ! -z $2 ] ; then
     if [ "$2" == "clean" ]; then
         clean="TRUE"
     else
-        echo "[!] The second argument '${2}' should be 'clean' if you want to run a make clean before building" >&2; exit 1
+        echo "[!] The second argument '${2}' should be 'clean' if you want to check for outdated output dirs after fetching" >&2; exit 1
     fi
 fi
-
-# usage: build-with-submodule <name>
-#
-# updates git repo in ~/<name>, runs make, copies ~/<name>/output/*.* to ~/public_html/<name>/
-function build-with-submodule() {
-    CUR_REPO=$1
-    cd "${REPOS_DIR}"
-    update-status "${CUR_REPO}" "pending"
-    INPUT_DIR="${REPOS_DIR}/${CUR_REPO}/"
-    CUR_OUTPUT_DIR="${OUTPUT_DIR}/${CUR_REPO}/"
-    test -d $INPUT_DIR || git clone "${REPO_URL_PREFIX}${CUR_REPO}${REPO_URL_SUFFIX}" "$INPUT_DIR"
-    pushd $INPUT_DIR > /dev/null
-    # git fetch + reset instead of git pull so that force-pushes are fetched correctly
-    fetch_output=$(git fetch)
-    git reset --hard origin > /dev/null
-    git submodule update --init > /dev/null
-    # collect some infos (for status)
-    commit_id=$(git log --pretty=format:"%h" --abbrev-commit --date=short -1)
-    commit_author=$(git log --pretty=format:"%an" --abbrev-commit --date=short -1)
-    todos=0
-    while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.tex" -print0)
-    while IFS= read -r -d '' f; do   todos=$(($todos+$(grep -wc -i "todo" "$f" &2> /dev/null))); done < <(find . -maxdepth 1 -type f -name "*.md" -print0)
-    # build
-    if [[ ! -z $clean && "$clean" == "TRUE" ]] ; then make clean > /dev/null ; fi # clean, when second argument is "clean"
-    make > /dev/null
-    # bring it to the output dir
-    mkdir -p $CUR_OUTPUT_DIR
-    cd output
-    rsync --delete --recursive . $CUR_OUTPUT_DIR
-    touch "${CUR_OUTPUT_DIR}" # change last modified for easily check for old repo outputs
-    update-status "${CUR_REPO}" "success"
-    popd  > /dev/null
-    commit_id=""
-    todos=""
-    if [ ! -z "$fetch_output" ] ; then
-        echo "Author of this commit is ${commit_author}"
-    fi
-}
 
 # usage: fetch-release <name>
 #
@@ -99,10 +63,6 @@ function build-with-submodule() {
 # The output dir is only touched after download and extraction succeeded, so a failure keeps the old files.
 function fetch-release() {
     CUR_REPO=$1
-    # nothing is checked out here, so there is no commit info for the status
-    commit_id=""
-    commit_author=""
-    todos=""
     update-status "${CUR_REPO}" "pending"
     CUR_OUTPUT_DIR="${OUTPUT_DIR}/${CUR_REPO}/"
     DOWNLOAD_DIR="${REPOS_DIR}/.release-download/"
@@ -123,7 +83,7 @@ function fetch-release() {
 # If the exit value of the script > 0 then the current $repo build seems to be failed (set -e causes this)
 function handle-exit() {
     if (( $? > 0 )) ; then
-        echo "[!] Build repository '${repo}' failed! Author: ${commit_author}" 1>&2
+        echo "[!] Fetching repository '${repo}' failed!" 1>&2
         update-status "${repo}" "failed"
         current_repo_index=$((current_repo_index+1))
         # run this script recursively, but start with next index
@@ -155,44 +115,16 @@ function update-status() {
         exit 1
     fi
     curl --silent -o "${STATUS_OUT_DIR}status.svg" "https://img.shields.io/badge/build-${2}-${COLOR}.svg"
-    if [[ -z "$commit_id" || "$commit_id" == "" ]]; then
-        commit_info=""
-    else
-        commit_info=", \"commit\": \"${commit_id}\""
-    fi
-    if [[ -z "$commit_author" || "$commit_author" == "" ]]; then
-        commit_author_info=""
-    else
-        commit_author_info=", \"author\": \"${commit_author}\""
-    fi
-    if [[ -z "$todos" || "$todos" == "" ]]; then
-        todos_info=""
-    else
-        todos_info=", \"todos\": \"${todos}\""
-        colors=("green" "yellow" "red")
-        index=0
-        if (( $todos > 5 )) ; then
-            index=1
-        elif (( $todos > 20 )) ; then
-            index=2
-        fi
-        curl --silent -o "${STATUS_OUT_DIR}status-todos.svg" "https://img.shields.io/badge/todos-${todos}-${colors[${index}]}.svg"
-    fi
-    echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\"${commit_info}${commit_author_info}${todos_info} }" > "${STATUS_OUT_DIR}status.json"
+    echo "{ \"status\": \"${2}\", \"updated\": \"$(date +%s)\", \"updated-human\": \"$(date)\" }" > "${STATUS_OUT_DIR}status.json"
 }
 
 # usage: run <start_index>
 #
-# runs through each repo given in $repos and $repos_release
+# fetches each repo given in $repos and $repos_release
 function run() {
     for (( current_repo_index=$1; current_repo_index<$count; current_repo_index++ )) ; do
         repo="${repos[${current_repo_index}]}"
-        # echo "[i] building repo ${repo}"
-        if (( current_repo_index < release_start )); then
-            build-with-submodule $repo
-        else
-            fetch-release $repo
-        fi
+        fetch-release $repo
     done
 }
 

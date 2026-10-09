@@ -1,36 +1,35 @@
 Buildserver
 ===========
 
-This repo contains a bashscript building our pdf documents and a little python "client" for querying the buildstatus. And there are also some svg batches for the buildstatus.
+This repo contains a bashscript fetching our pdf documents from GitHub releases and a little python "client" for querying the buildstatus. And there are also some svg batches for the buildstatus.
 
 Usage Server
 ------------
 
  1. Copy the [`config.cfg.example`](config.cfg.example) to `config.example`.
 
- 1. "Register" the directory name of each repo to be build in the `$repo` variable in `config.cfg`.
+ 1. "Register" the name of each repo to be fetched in the `$repos` variable in `config.cfg`.
 
  1. Run [`build_cron.sh check`](build_cron.sh) in a cronjob as often as you like - it will return if the last build is still running. It runs a build if one was triggered or if the last one is older than one hour, so that a lost trigger does not leave outdated files forever.
  
- 1. from time to time, run `build_cron.sh clean` to trigger a cleanup and complete rebuild. `build_cron.sh force` does the same without cleanup.
+ 1. from time to time, run `build_cron.sh clean` to trigger a complete fetch and a warning for output dirs which are no longer updated. `build_cron.sh force` does the same without the warning.
  
- 1. setup a webhook to `trigger_build.php`. Enable it for the events "push" and "release": repos which are built here change with a push, repos which are fetched (see below) change when their GitHub Action has finished and created the release, which is some minutes after the push.
+ 1. setup a webhook to `trigger_build.php`. Enable it for the event "release": the output of a repo changes when its GitHub Action has finished and created the release.
 
  1. for monitoring, check the modification time of `state/last-successful-run`. It is touched after each run which did not time out. Failures of single repos are only visible in their `status.json`.
 
-Fetching instead of building
-----------------------------
+Fetching releases
+-----------------
 
-Repos listed in `$repos_release` are not built by the buildserver. Instead, the file `output.tar.gz` is downloaded from the latest GitHub release of the repo (`<REPO_URL_PREFIX><repo>/releases/latest/download/output.tar.gz`) and its content is published like the `output/` directory of a built repo. If the download fails, the previously published files are kept.
+The buildserver does not build anything. For each repo in `$repos`, the file `output.tar.gz` is downloaded from the latest GitHub release of the repo (`<REPO_URL_PREFIX><repo>/releases/latest/download/output.tar.gz`) and its content is published like the `output/` directory of a built repo. If the download fails, the previously published files are kept.
 
-A repo must only be listed in one of `$repos` and `$repos_release`.
-  
+The release is created by a GitHub Action in the repo itself (see `pdf.yml` in [document-dummy](https://github.com/fau-fablab/document-dummy)). `$repos_release` is still accepted and handled like `$repos`.
 
 ```bash
 # Usage:
-# build all specified repos
+# fetch all specified repos
 ./build.sh
-# build only the 6th and later repos
+# fetch only the 6th and later repos
 ./build.sh 6
 ```
 
@@ -39,9 +38,8 @@ Repository setup
 
 Create your repositories this way:
 
-* Makefile in the top directory
-* all dependent repos are git submodules. If you want to point to a branch instead of a specific commit, use a tracking-branch (`git submodule add ... -b master`)
-* The Makefile copies all public output to the output/ subdirectory
+* Makefile in the top directory, which copies all public output to the output/ subdirectory
+* a GitHub Action which runs it on each push and attaches the output/ directory as `output.tar.gz` to a release
 
 Add the repository to the configuration. The output can then be found under `http://my-buildserver/repository/`
 
